@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nuevo producto</title>
+<style>
+:root{--bg:#f3f5f2;--card:#fff;--ink:#1d2b24;--muted:#5d6b64;--line:#cfd8d2;--accent:#1f7a5a;--err:#b3261e;--ok:#17653f;--warn:#fff;}
+@media (prefers-color-scheme:dark){:root{--bg:#121a16;--card:#1a2520;--ink:#e8f0ec;--muted:#9fb0a6;--line:#33443b;--accent:#4cc49a;--err:#ff8a80;--ok:#6fdca8;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,sans-serif;display:flex;justify-content:center;padding:24px 16px}
+.card{background:var(--card);width:100%;max-width:560px;border-radius:14px;border:1px solid var(--line);padding:28px}
+h1{margin:0 0 4px;font-size:1.5rem}
+p.sub{margin:0 0 24px;color:var(--muted)}
+.field{margin-bottom:18px}
+label{display:block;font-weight:600;margin-bottom:6px}
+input,select,textarea{width:100%;padding:12px;font:inherit;color:var(--ink);background:transparent;border:1.5px solid var(--line);border-radius:8px}
+textarea{min-height:100px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:3px solid color-mix(in srgb,var(--accent) 40%,transparent);border-color:var(--accent)}
+.field.invalid input,.field.invalid select,.field.invalid textarea{border-color:var(--err)}
+.msg{color:var(--err);font-size:.85rem;margin-top:5px;min-height:1em}
+.hint{color:var(--muted);font-size:.8rem;float:right}
+button{width:100%;padding:14px;font:inherit;font-weight:700;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer;display:flex;gap:10px;justify-content:center;align-items:center}
+button:disabled{opacity:.7;cursor:wait}
+.spinner{width:18px;height:18px;border:3px solid #fff5;border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite;display:none}
+.loading .spinner{display:block}
+@keyframes s{to{transform:rotate(360deg)}}
+.banner{display:none;margin-top:16px;padding:12px 14px;border-radius:8px;font-weight:600}
+.banner.ok{display:block;color:var(--ok);border:1.5px solid var(--ok)}
+.banner.error{display:block;color:var(--err);border:1.5px solid var(--err)}
+@media (max-width:480px){.card{padding:20px}}
+@media (prefers-reduced-motion:reduce){.spinner{animation-duration:2s}}
+</style>
+</head>
+<body>
+<main class="card">
+  <h1>Nuevo producto</h1>
+  <p class="sub">Completa los datos para agregarlo al catálogo.</p>
+  <form id="form" novalidate>
+    <div class="field" id="f-nombre">
+      <label for="nombre">Nombre</label>
+      <input id="nombre" name="nombre" type="text" maxlength="60" autocomplete="off">
+      <div class="msg" id="e-nombre" role="alert"></div>
+    </div>
+    <div class="field" id="f-precio">
+      <label for="precio">Precio (USD)</label>
+      <input id="precio" name="precio" type="number" step="0.01" min="0" inputmode="decimal">
+      <div class="msg" id="e-precio" role="alert"></div>
+    </div>
+    <div class="field" id="f-categoria">
+      <label for="categoria">Categoría</label>
+      <select id="categoria" name="categoria">
+        <option value="">Selecciona una categoría</option>
+        <option>Electrónica</option><option>Hogar</option><option>Ropa</option><option>Alimentos</option><option>Otros</option>
+      </select>
+      <div class="msg" id="e-categoria" role="alert"></div>
+    </div>
+    <div class="field" id="f-descripcion">
+      <label for="descripcion">Descripción <span class="hint" id="count">0/200</span></label>
+      <textarea id="descripcion" name="descripcion" maxlength="200"></textarea>
+      <div class="msg" id="e-descripcion" role="alert"></div>
+    </div>
+    <button type="submit" id="btn"><span class="spinner"></span><span id="btn-text">Guardar producto</span></button>
+    <div class="banner" id="banner" role="status"></div>
+  </form>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const rules = {
+  nombre: v => !v.trim() ? "El nombre es obligatorio." : v.trim().length < 3 ? "Usa al menos 3 caracteres." : "",
+  precio: v => v === "" ? "El precio es obligatorio." : Number(v) <= 0 ? "El precio debe ser mayor a 0." : "",
+  categoria: v => !v ? "Elige una categoría." : "",
+  descripcion: v => v.trim().length < 10 ? "Describe el producto en al menos 10 caracteres." : ""
+};
+function check(name){
+  const msg = rules[name]($(name).value);
+  $("e-"+name).textContent = msg;
+  $("f-"+name).classList.toggle("invalid", !!msg);
+  return !msg;
+}
+Object.keys(rules).forEach(n => {
+  $(n).addEventListener("blur", () => check(n));
+  $(n).addEventListener("input", () => { if ($("f-"+n).classList.contains("invalid")) check(n); });
+});
+$("descripcion").addEventListener("input", e => $("count").textContent = e.target.value.length + "/200");
+ 
+// Simula una petición al servidor (reemplaza por fetch real). ~25% falla para probar el estado de error.
+const guardar = data => new Promise((res, rej) => setTimeout(() => Math.random() > .25 ? res(data) : rej(new Error()), 1500));
+ 
+$("form").addEventListener("submit", async e => {
+  e.preventDefault();
+  const banner = $("banner"); banner.className = "banner";
+  const valido = Object.keys(rules).map(check).every(Boolean);
+  if (!valido) return;
+  $("btn").disabled = true; $("btn").classList.add("loading"); $("btn-text").textContent = "Guardando…";
+  try {
+    await guardar(Object.fromEntries(new FormData($("form"))));
+    banner.textContent = "Producto guardado correctamente."; banner.className = "banner ok";
+    $("form").reset(); $("count").textContent = "0/200";
+  } catch {
+    banner.textContent = "No se pudo guardar. Revisa tu conexión e inténtalo de nuevo."; banner.className = "banner error";
+  } finally {
+    $("btn").disabled = false; $("btn").classList.remove("loading"); $("btn-text").textContent = "Guardar producto";
+  }
+});
+</script>
+</body>
+</html>
+ 
